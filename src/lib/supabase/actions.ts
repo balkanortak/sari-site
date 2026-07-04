@@ -4,15 +4,13 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { createServerSupabase } from "./server";
 
-export async function login(formData: FormData) {
+export async function login(prevState: { error?: string }, formData: FormData) {
   const supabase = await createServerSupabase();
 
-  const data = {
+  const { error } = await supabase.auth.signInWithPassword({
     email: formData.get("email") as string,
     password: formData.get("password") as string,
-  };
-
-  const { error } = await supabase.auth.signInWithPassword(data);
+  });
 
   if (error) {
     return { error: error.message };
@@ -22,24 +20,45 @@ export async function login(formData: FormData) {
   redirect("/");
 }
 
-export async function register(formData: FormData) {
+export async function register(prevState: { error?: string }, formData: FormData) {
   const supabase = await createServerSupabase();
 
-  const data = {
+  const password = formData.get("password") as string;
+  const passwordConfirm = formData.get("password_confirm") as string;
+
+  if (password !== passwordConfirm) {
+    return { error: "Şifreler eşleşmiyor" };
+  }
+
+  if (password.length < 6) {
+    return { error: "Şifre en az 6 karakter olmalıdır" };
+  }
+
+  const { data: authData, error: authError } = await supabase.auth.signUp({
     email: formData.get("email") as string,
-    password: formData.get("password") as string,
+    password: password,
     options: {
       data: {
         full_name: formData.get("full_name") as string,
-        account_type: formData.get("account_type") as string,
+        phone: formData.get("phone") as string,
+        city: formData.get("city") as string,
+        account_type: "bireysel",
       },
     },
-  };
+  });
 
-  const { error } = await supabase.auth.signUp(data);
+  if (authError) {
+    return { error: authError.message };
+  }
 
-  if (error) {
-    return { error: error.message };
+  if (authData.user) {
+    await supabase.from("profiles").upsert({
+      user_id: authData.user.id,
+      full_name: formData.get("full_name") as string,
+      account_type: "bireysel",
+      phone: formData.get("phone") as string,
+      city: formData.get("city") as string,
+    });
   }
 
   revalidatePath("/", "layout");

@@ -1,24 +1,12 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useActionState } from "react";
 import Link from "next/link";
 import { login } from "@/lib/supabase/actions";
 
 export default function LoginPage() {
-  const [error, setError] = useState<string | null>(null);
-  const [loading, setLoading] = useState(false);
-
-  async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
-    e.preventDefault();
-    setError(null);
-    setLoading(true);
-    const formData = new FormData(e.currentTarget);
-    const result = await login(formData);
-    if (result?.error) {
-      setError(result.error);
-      setLoading(false);
-    }
-  }
+  const [showPassword, setShowPassword] = useState(false);
+  const [state, formAction, pending] = useActionState(login, { error: "" });
 
   return (
     <div className="min-h-screen bg-[#f0f0f0] flex items-center justify-center px-4">
@@ -37,13 +25,13 @@ export default function LoginPage() {
           <h1 className="text-xl font-bold text-gray-900 text-center mb-1">Giriş Yap</h1>
           <p className="text-sm text-gray-500 text-center mb-6">Hesabınıza giriş yaparak ilanlarınızı yönetin</p>
 
-          {error && (
+          {state.error && state.error.length > 0 && (
             <div className="bg-red-50 text-red-600 p-3 rounded-xl text-sm mb-4 border border-red-100">
-              {error}
+              {state.error}
             </div>
           )}
 
-          <form onSubmit={handleSubmit} className="space-y-4">
+          <form action={formAction} className="space-y-4">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1.5">E-posta adresi</label>
               <input
@@ -59,20 +47,29 @@ export default function LoginPage() {
                 <label className="text-sm font-medium text-gray-700">Şifre</label>
                 <Link href="#" className="text-xs text-[#1a73e8] hover:underline">Şifremi Unuttum</Link>
               </div>
-              <input
-                type="password"
-                name="password"
-                required
-                placeholder="••••••••"
-                className="w-full px-4 py-3 border border-gray-200 rounded-xl text-sm focus:outline-none focus:border-[#ffc107] focus:ring-1 focus:ring-[#ffc107] transition-colors"
-              />
+              <div className="relative">
+                <input
+                  type={showPassword ? "text" : "password"}
+                  name="password"
+                  required
+                  placeholder="••••••••"
+                  className="w-full px-4 py-3 pr-12 border border-gray-200 rounded-xl text-sm focus:outline-none focus:border-[#ffc107] focus:ring-1 focus:ring-[#ffc107] transition-colors"
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(!showPassword)}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                >
+                  {showPassword ? "🙈" : "👁️"}
+                </button>
+              </div>
             </div>
             <button
               type="submit"
-              disabled={loading}
+              disabled={pending}
               className="w-full bg-[#ffc107] hover:bg-[#e6ac00] text-gray-900 font-bold py-3 rounded-xl transition-colors disabled:opacity-50 disabled:cursor-not-allowed text-sm"
             >
-              {loading ? "Giriş yapılıyor..." : "Giriş Yap"}
+              {pending ? "Giriş yapılıyor..." : "Giriş Yap"}
             </button>
           </form>
 
